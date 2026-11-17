@@ -1,19 +1,122 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0a0f" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Chivo:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@400;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Chivo:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&family=Sora:wght@400;600;700;800&display=swap"
       rel="stylesheet"
     />
     <title>Nexus Keys</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-secondary-container": "#007239",
+            "error": "#ffb4ab",
+            "secondary-fixed": "#60ff99",
+            "error-container": "#93000a",
+            "surface-container-high": "#2a292f",
+            "background": "#131318",
+            "on-secondary": "#003919",
+            "on-primary-container": "#006970",
+            "on-surface": "#e4e1e9",
+            "on-tertiary-fixed-variant": "#6900b3",
+            "primary-fixed": "#7df4ff",
+            "inverse-on-surface": "#303036",
+            "surface-container-highest": "#35343a",
+            "on-primary": "#00363a",
+            "on-secondary-fixed": "#00210c",
+            "secondary-fixed-dim": "#00e479",
+            "surface-variant": "#35343a",
+            "surface": "#131318",
+            "secondary": "#f5fff3",
+            "on-primary-fixed": "#002022",
+            "tertiary-container": "#eacfff",
+            "surface-dim": "#131318",
+            "inverse-primary": "#006970",
+            "outline-variant": "#3b494b",
+            "tertiary-fixed-dim": "#ddb7ff",
+            "primary-container": "#00f0ff",
+            "inverse-surface": "#e4e1e9",
+            "primary": "#dbfcff",
+            "primary-fixed-dim": "#00dbe9",
+            "on-tertiary": "#490080",
+            "surface-tint": "#00dbe9",
+            "on-primary-fixed-variant": "#004f54",
+            "tertiary": "#fdf2ff",
+            "on-tertiary-fixed": "#2c0051",
+            "surface-container-lowest": "#0e0e13",
+            "outline": "#849495",
+            "on-surface-variant": "#b9cacb",
+            "on-background": "#e4e1e9",
+            "secondary-container": "#34ff8d",
+            "surface-container": "#1f1f25",
+            "on-error-container": "#ffdad6",
+            "on-tertiary-container": "#842bd2",
+            "on-secondary-fixed-variant": "#005228",
+            "tertiary-fixed": "#f0dbff",
+            "on-error": "#690005",
+            "surface-container-low": "#1b1b20",
+            "surface-bright": "#39383e"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "gutter-mobile": "0.75rem",
+            "space-lg": "1.5rem",
+            "space-md": "1rem",
+            "space-sm": "0.5rem",
+            "gutter": "1rem",
+            "space-xl": "2.25rem",
+            "margin-mobile": "1rem",
+            "margin": "1.25rem"
+          },
+          "fontFamily": {
+            "headline-md": ["Sora"],
+            "headline-xl-mobile": ["Sora"],
+            "label-sm": ["JetBrains Mono"],
+            "body-sm": ["Chivo"],
+            "body-md": ["Chivo"],
+            "headline-xl": ["Sora"],
+            "headline-lg-mobile": ["Sora"],
+            "code-key": ["JetBrains Mono"],
+            "label-lg": ["JetBrains Mono"],
+            "label-md": ["JetBrains Mono"],
+            "body-lg": ["Chivo"],
+            "headline-sm": ["Sora"],
+            "headline-lg": ["Sora"]
+          },
+          "fontSize": {
+            "headline-md": ["20px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-xl-mobile": ["30px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+            "label-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.08em", "fontWeight": "500" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "headline-xl": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.03em", "fontWeight": "800" }],
+            "headline-lg-mobile": ["24px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "code-key": ["15px", { "lineHeight": "20px", "letterSpacing": "0.12em", "fontWeight": "700" }],
+            "label-lg": ["14px", { "lineHeight": "18px", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-sm": ["16px", { "lineHeight": "22px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+          }
+        }
+      }
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
