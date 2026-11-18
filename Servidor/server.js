@@ -1,5 +1,6 @@
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
@@ -12,14 +13,85 @@ app.use(cors({
 
 app.use(express.json());
 
-function createSupabaseClient(url, anonKey) {
+function createSupabaseClient(url, anonKey, accessToken) {
     return createClient(url, anonKey, {
         auth: {
             autoRefreshToken: false,
             detectSessionInUrl: false,
             persistSession: false,
         },
+        ...(accessToken ? {
+            global: {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            },
+        } : {}),
     });
+}
+
+async function authenticateRequest(req) {
+    const authorization = req.get('authorization') || '';
+    const accessToken = authorization.startsWith('Bearer ')
+        ? authorization.slice('Bearer '.length)
+        : '';
+
+    if (!accessToken) {
+        return { error: { status: 401, message: 'Inicia sesión para continuar.' } };
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+        return { error: { status: 503, message: 'El servicio de autenticación no está configurado.' } };
+    }
+
+    const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey, accessToken);
+    const { data, error } = await supabase.auth.getUser(accessToken);
+    if (error || !data.user) {
+        return { error: { status: 401, message: 'La sesión expiró. Inicia sesión de nuevo.' } };
+    }
+
+    return { supabase, user: data.user };
+}
+
+function decryptInventoryKey(value) {
+    if (typeof value !== 'string' || value.length === 0) {
+        throw new Error('La clave guardada no tiene un formato válido.');
+    }
+
+    if (!value.startsWith('enc:')) {
+        return value;
+    }
+
+    const [prefix, version, encodedIv, encodedTag, encodedCiphertext, ...extra] = value.split(':');
+    if (prefix !== 'enc' || version !== 'v1' || !encodedIv || !encodedTag || !encodedCiphertext || extra.length > 0) {
+        const error = new Error('La clave está cifrada en un formato no compatible.');
+        error.code = 'KEY_DECRYPTION_FORMAT';
+        throw error;
+    }
+
+    const encryptionSecret = process.env.KEY_ENCRYPTION_KEY;
+    if (!encryptionSecret) {
+        const error = new Error('Falta configurar KEY_ENCRYPTION_KEY para revelar las claves cifradas.');
+        error.code = 'KEY_DECRYPTION_CONFIG';
+        throw error;
+    }
+
+    const encryptionKey = /^[0-9a-f]{64}$/i.test(encryptionSecret)
+        ? Buffer.from(encryptionSecret, 'hex')
+        : Buffer.from(encryptionSecret, 'base64');
+    const iv = Buffer.from(encodedIv, 'base64');
+    const authTag = Buffer.from(encodedTag, 'base64');
+    const ciphertext = Buffer.from(encodedCiphertext, 'base64');
+
+    if (encryptionKey.length !== 32 || iv.length !== 12 || authTag.length !== 16 || ciphertext.length === 0) {
+        const error = new Error('La configuración de cifrado de las claves es inválida.');
+        error.code = 'KEY_DECRYPTION_CONFIG';
+        throw error;
+    }
+
+    const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey, iv);
+    decipher.setAuthTag(authTag);
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
 }
 
 // Ruta de prueba
@@ -43,7 +115,7 @@ app.get('/api/catalogo', async (req, res) => {
         const [gamesResult, categoriesResult, platformsResult] = await Promise.all([
             supabase
                 .from('games')
-                .select('id,title,slug,description,synopsis,developer,publisher,franchise,release_date,cover_url,banner_url,game_categories(categories(id,name,slug)),offers!inner(id,price,original_price,currency,edition,delivery_type,promotion_starts_at,promotion_ends_at,status,platforms(id,name,slug),regions(id,name,code),drms(id,name,slug))')
+                .select('id,title,slug,description,synopsis,developer,publisher,franchise,release_date,cover_url,banner_url,trailer_url,game_categories(categories(id,name,slug)),offers!inner(id,price,original_price,currency,edition,delivery_type,promotion_starts_at,promotion_ends_at,status,platforms(id,name,slug),regions(id,name,code),drms(id,name,slug))')
                 .eq('offers.status', 'published')
                 .order('title'),
             supabase.from('categories').select('id,name,slug').order('name'),
@@ -67,6 +139,7 @@ app.get('/api/catalogo', async (req, res) => {
             release_date: game.release_date,
             cover_url: game.cover_url,
             banner_url: game.banner_url,
+            trailer_url: game.trailer_url,
             categories: (game.game_categories || [])
                 .map(link => link.categories)
                 .filter(Boolean),
@@ -74,7 +147,7 @@ app.get('/api/catalogo', async (req, res) => {
                 id: offer.id,
                 price: Number(offer.price),
                 original_price: offer.original_price === null ? null : Number(offer.original_price),
-                currency: offer.currency.trim(),
+                currency: 'MXN',
                 edition: offer.edition,
                 delivery_type: offer.delivery_type,
                 promotion_starts_at: offer.promotion_starts_at,
@@ -96,6 +169,155 @@ app.get('/api/catalogo', async (req, res) => {
     } catch (error) {
         console.error('Catalog request failed:', error.message);
         return res.status(502).json({ message: 'No se pudo conectar con la base de datos del catálogo.' });
+    }
+});
+
+app.post('/api/orders/demo', async (req, res) => {
+    const items = req.body?.items;
+    const couponCode = req.body?.coupon_code ?? null;
+    const idempotencyKey = req.get('Idempotency-Key') || '';
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    if (!Array.isArray(items) || items.length === 0 || items.length > 25) {
+        return res.status(400).json({ message: 'El carrito está vacío o contiene demasiados productos.' });
+    }
+
+    if (!uuidPattern.test(idempotencyKey)) {
+        return res.status(400).json({ message: 'No se recibió una clave de solicitud válida.' });
+    }
+
+    const seenOffers = new Set();
+    for (const item of items) {
+        if (
+            !item
+            || typeof item.offer_id !== 'string'
+            || !uuidPattern.test(item.offer_id)
+            || !Number.isInteger(item.quantity)
+            || item.quantity < 1
+            || item.quantity > 50
+            || seenOffers.has(item.offer_id)
+        ) {
+            return res.status(400).json({ message: 'El carrito contiene productos o cantidades inválidos.' });
+        }
+        seenOffers.add(item.offer_id);
+    }
+
+    if (couponCode !== null && couponCode !== 'GAMER2025') {
+        return res.status(400).json({ message: 'El cupón indicado no es válido.' });
+    }
+
+    try {
+        const auth = await authenticateRequest(req);
+        if (auth.error) {
+            return res.status(auth.error.status).json({ message: auth.error.message });
+        }
+
+        const { data, error } = await auth.supabase.rpc('create_demo_order', {
+            p_lines: items,
+            p_idempotency_key: idempotencyKey,
+            p_coupon_code: couponCode,
+        });
+
+        if (error) {
+            if (error.code === 'P0001') {
+                const message = error.message.includes('NO_STOCK')
+                    ? 'No hay suficientes keys disponibles. No se creó la orden.'
+                    : 'El inventario cambió durante la compra. No se creó la orden; inténtalo de nuevo.';
+                return res.status(409).json({ message });
+            }
+            if (error.code === 'P0002') {
+                return res.status(409).json({ message: 'Una oferta del carrito ya no está disponible. No se creó la orden.' });
+            }
+            if (error.code === '22023' && error.message.includes('ONLY_MXN')) {
+                return res.status(409).json({ message: 'La oferta no está configurada en pesos mexicanos. No se creó la orden.' });
+            }
+            if (error.code === '22023') {
+                return res.status(400).json({ message: 'El carrito tiene datos inválidos. No se creó la orden.' });
+            }
+
+            console.error('Demo order RPC failed:', {
+                code: error.code || 'unknown error',
+                message: error.message || 'No database error message returned.',
+                details: error.details || null,
+                hint: error.hint || null,
+            });
+            return res.status(502).json({ message: 'No se pudo registrar la compra simulada.' });
+        }
+
+        return res.status(201).json({ order: data });
+    } catch (error) {
+        console.error('Demo order request failed:', error.message);
+        return res.status(502).json({ message: 'No se pudo conectar con el servicio de órdenes.' });
+    }
+});
+
+app.get('/api/orders/:orderId', async (req, res) => {
+    const orderId = req.params.orderId;
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidPattern.test(orderId)) {
+        return res.status(400).json({ message: 'El número de orden solicitado no es válido.' });
+    }
+
+    try {
+        const auth = await authenticateRequest(req);
+        if (auth.error) {
+            return res.status(auth.error.status).json({ message: auth.error.message });
+        }
+
+        const { data, error } = await auth.supabase.rpc('get_my_demo_order', {
+            p_order_id: orderId,
+        });
+        if (error) {
+            console.error('Demo order lookup failed:', error.code || 'unknown error');
+            return res.status(502).json({ message: 'No se pudo consultar la orden.' });
+        }
+        if (!data) {
+            return res.status(404).json({ message: 'No se encontró la orden solicitada.' });
+        }
+
+        return res.json({ order: data });
+    } catch (error) {
+        console.error('Demo order lookup request failed:', error.message);
+        return res.status(502).json({ message: 'No se pudo conectar con el servicio de órdenes.' });
+    }
+});
+
+app.get('/api/keys', async (req, res) => {
+    try {
+        const auth = await authenticateRequest(req);
+        if (auth.error) {
+            return res.status(auth.error.status).json({ message: auth.error.message });
+        }
+
+        const { data, error } = await auth.supabase.rpc('get_my_purchased_keys');
+        if (error) {
+            console.error('Purchased keys RPC failed:', error.code || 'unknown error');
+            return res.status(502).json({ message: 'No se pudieron consultar tus claves.' });
+        }
+
+        const keys = data.map(item => ({
+            id: item.key_id,
+            orderId: item.order_id,
+            orderNumber: item.order_number,
+            purchasedAt: item.purchased_at,
+            gameTitle: item.game_title,
+            platform: item.platform_name,
+            region: item.region_name,
+            edition: item.edition,
+            coverUrl: item.cover_url,
+            key: decryptInventoryKey(item.key_ciphertext),
+            keyHint: item.key_hint,
+            unitPrice: Number(item.unit_price),
+            currency: 'MXN',
+        }));
+
+        return res.json({ keys });
+    } catch (error) {
+        console.error('Purchased keys request failed:', error.message);
+        if (error.code === 'KEY_DECRYPTION_CONFIG' || error.code === 'KEY_DECRYPTION_FORMAT') {
+            return res.status(503).json({ message: error.message });
+        }
+        return res.status(502).json({ message: 'No se pudieron cargar las claves de la bóveda.' });
     }
 });
 

@@ -1308,13 +1308,20 @@
       gap: 20px;
     }
 
+    .site-brand-group,
     .site-brand,
     .site-account,
     .site-account-button,
     .site-register-button,
-    .site-cart-link {
+    .site-cart-link,
+    .site-icon-button {
       display: flex;
       align-items: center;
+    }
+
+    .site-brand-group {
+      min-width: 0;
+      gap: 9px;
     }
 
     .site-brand,
@@ -1339,18 +1346,42 @@
       box-shadow: 0 0 10px var(--cyan);
     }
 
+    .site-brand-separator {
+      color: var(--text-dim);
+      font-family: var(--font-label);
+      font-size: 13px;
+    }
+
     .site-account {
       flex-shrink: 0;
       gap: 9px;
     }
 
     .site-cart-link {
+      position: relative;
       justify-content: center;
       width: 36px;
       height: 36px;
       color: var(--text-muted);
       border: 1px solid var(--line);
       border-radius: 6px;
+    }
+
+    .site-cart-count {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #071014;
+      background: var(--green);
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
     }
 
     .site-cart-link:hover {
@@ -1366,6 +1397,30 @@
       font-size: 11px;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .site-icon-button {
+      width: 36px;
+      height: 36px;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text-muted);
+      background: transparent;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .site-icon-button:hover {
+      color: var(--cyan);
+      border-color: var(--cyan);
+      background: rgba(0, 240, 255, 0.08);
+    }
+
+    .site-icon-button:focus-visible,
+    .site-cart-link:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
     }
 
     .site-account-button,
@@ -1407,24 +1462,74 @@
     }
 
     .site-footer {
-      min-height: 64px;
-      padding: 16px max(16px, calc((100% - 1440px) / 2));
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 18px;
+      padding: 28px 16px 16px;
       background: var(--surface);
       border-top: 1px solid var(--line);
     }
 
+    .site-footer-content {
+      width: min(100%, 1440px);
+      margin: 0 auto;
+    }
+
+    .site-footer-main {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 32px;
+      padding-bottom: 24px;
+    }
+
+    .site-footer-summary {
+      max-width: 460px;
+    }
+
     .site-footer-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
       font-size: 13px;
     }
 
-    .site-footer > span {
+    .site-footer-brand .site-brand-mark {
+      width: 7px;
+      height: 18px;
+    }
+
+    .site-footer-summary p {
+      margin: 10px 0 0;
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .site-footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 24px;
+      padding-top: 4px;
+      font-family: var(--font-label);
+      font-size: 11px;
+    }
+
+    .site-footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+
+    .site-footer-links a:hover {
+      color: var(--cyan);
+    }
+
+    .site-footer-bottom {
+      padding-top: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 8px 18px;
+      border-top: 1px solid var(--line);
       color: var(--text-dim);
-      font-size: 10px;
-      white-space: nowrap;
+      font-size: 11px;
     }
 
     @media (max-width: 760px) {
@@ -1436,10 +1541,51 @@
       }
 
       .site-username {
-        display: none;
+        max-width: clamp(72px, 20vw, 150px);
       }
 
       .site-footer {
-        flex-wrap: wrap;
+        padding: 24px 16px 14px;
+      }
+
+      .site-footer-main {
+        flex-direction: column;
+        gap: 18px;
+      }
+    }
+
+    @media (max-width: 460px) {
+      .site-header-content {
+        width: calc(100% - 24px);
+      }
+
+      .site-brand-group {
+        gap: 6px;
+      }
+
+      .site-brand {
+        gap: 6px;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+      }
+
+      .site-brand-mark {
+        width: 7px;
+        height: 20px;
+      }
+
+      .site-username {
+        max-width: 72px;
+        font-size: 9px;
+      }
+
+      .site-account {
+        gap: 5px;
+      }
+
+      .site-icon-button,
+      .site-cart-link {
+        width: 32px;
+        height: 32px;
       }
     }

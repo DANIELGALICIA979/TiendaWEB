@@ -1,4 +1,40 @@
+import { useEffect, useState } from 'react'
+import { formatoPrecio } from '../src/catalogUtils.js'
+import { obtenerOrden } from '../services/api.js'
+
 function PedidoConfirmacion() {
+  const orderId = new URLSearchParams(window.location.search).get('order')
+  const [order, setOrder] = useState(null)
+  const [status, setStatus] = useState(orderId ? 'loading' : 'error')
+  const [error, setError] = useState(orderId ? '' : 'No se indicó un número de orden.')
+
+  useEffect(() => {
+    let active = true
+    if (!orderId) {
+      return () => {
+        active = false
+      }
+    }
+
+    obtenerOrden(orderId)
+      .then(result => {
+        if (active) {
+          setOrder(result)
+          setStatus('ready')
+        }
+      })
+      .catch(loadError => {
+        if (active) {
+          setError(loadError.message)
+          setStatus('error')
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [orderId])
+
   return (
 <div className={"bg-background text-on-surface min-h-screen flex flex-col selection:bg-primary-container selection:text-surface-container-lowest antialiased"}>
   <div className={"flex-1 flex"}>
@@ -6,7 +42,9 @@ function PedidoConfirmacion() {
       <div className={"flex flex-col w-full"}>
         <div className={"w-full bg-surface-container-lowest rounded-xl p-space-sm mb-space-lg shadow-xl relative overflow-hidden"}>
         </div>
-        <div className={"flex flex-col gap-space-lg"} id={"view-success"}>
+        {status === 'loading' && <p className={"bg-surface-container-low rounded-xl p-space-md text-center"} role="status">Consultando los datos de tu orden...</p>}
+        {status === 'error' && <div className={"bg-surface-container-low rounded-xl p-space-md border border-error/50 text-center"} role="alert"><h1 className={"font-headline-lg text-headline-lg text-error"}>No se pudo cargar la orden</h1><p className={"font-body-md text-body-md text-on-surface-variant mt-2"}>{error}</p><a className={"inline-flex mt-space-md px-space-md py-2 rounded bg-surface-container-high text-on-surface"} href={"/carrito"}>Volver al carrito</a></div>}
+        <div className={status === 'ready' ? "flex flex-col gap-space-lg" : "hidden flex-col gap-space-lg"} id={"view-success"}>
           <div className={"relative bg-surface-container-low rounded-xl p-space-md lg:p-space-xl overflow-hidden shadow-2xl border border-outline-variant/60 flex flex-col items-center text-center"}>
             <div className={"absolute -top-24 -left-24 w-80 h-80 bg-secondary-container/10 rounded-full blur-3xl pointer-events-none"}>
             </div>
@@ -32,7 +70,7 @@ function PedidoConfirmacion() {
                 {' '}Simulación de Confirmación de Orden{' '}
               </h1>
               <p className={"font-body-lg text-body-lg text-on-surface-variant mb-space-lg max-w-xl"}>
-                {' '}La pasarela de pago aún no está configurada: no se procesó ningún pago ni se generó una licencia. Este recorrido muestra dónde aparecerían las claves en tu{' '}
+                {' '}La compra académica se registró sin realizar un cobro real y las keys disponibles se asignaron a tu{' '}
                 <span className={"text-primary font-semibold"}>
                   Bóveda / Historial de Compras
                 </span>
@@ -44,8 +82,8 @@ function PedidoConfirmacion() {
                     <span className={"font-label-sm text-label-sm text-outline uppercase tracking-wider"}>
                       N° de Orden
                     </span>
-                    <span className={"font-headline-sm text-headline-sm text-primary-container font-bold font-mono tracking-wider"}>
-                      #NX-984210
+                    <span className={"font-headline-sm text-headline-sm text-primary-container font-bold font-mono tracking-wider break-all"}>
+                      #{order?.order_number}
                     </span>
                   </div>
                   <div className={"flex flex-col gap-1"}>
@@ -56,7 +94,7 @@ function PedidoConfirmacion() {
                       <span className={"material-symbols-outlined text-sm text-outline"}>
                         schedule
                       </span>
-                      {' '}18 May 2025 • 19:42 UTC{' '}
+                      {' '}{order?.created_at ? new Date(order.created_at).toLocaleString('es-MX') : ''}{' '}
                     </span>
                   </div>
                   <div className={"flex flex-col gap-1"}>
@@ -65,9 +103,9 @@ function PedidoConfirmacion() {
                     </span>
                     <span className={"font-label-md text-label-md text-on-surface flex items-center gap-1 mt-0.5"}>
                       <span className={"material-symbols-outlined text-sm text-outline"}>
-                        credit_card
+                        verified
                       </span>
-                      {' '}VISA •••• 4092{' '}
+                      {' '}Simulado{' '}
                     </span>
                   </div>
                   <div className={"flex flex-col gap-1 sm:text-right"}>
@@ -76,14 +114,26 @@ function PedidoConfirmacion() {
                     </span>
                     <div className={"flex items-baseline sm:justify-end gap-1 mt-0.5"}>
                       <span className={"font-headline-md text-headline-md text-primary font-extrabold"}>
-                        $69.98
-                      </span>
-                      <span className={"font-label-sm text-xs text-primary-fixed-dim uppercase"}>
-                        USD
+                        {order ? formatoPrecio(order.total) : ''}
                       </span>
                     </div>
                   </div>
                 </div>
+              </div>
+              <div className={"w-full bg-surface-container-lowest/90 rounded-xl p-space-md border border-outline-variant/60 backdrop-blur-md mb-space-lg shadow-lg text-left"}>
+                <h2 className={"font-headline-sm text-headline-sm text-on-surface mb-space-sm"}>Productos adquiridos</h2>
+                <div className={"flex flex-col divide-y divide-outline-variant"}>
+                  {(order?.items || []).map((item, index) => (
+                    <div className={"py-space-sm flex flex-wrap items-center justify-between gap-space-sm"} key={`${item.game_title}-${index}`}>
+                      <div>
+                        <strong>{item.game_title}</strong>
+                        <p className={"font-body-sm text-body-sm text-on-surface-variant"}>{item.platform_name} · {item.region_name} · {item.edition || 'Estándar'} · Cantidad: {item.quantity}</p>
+                      </div>
+                      <strong>{formatoPrecio(item.subtotal)}</strong>
+                    </div>
+                  ))}
+                </div>
+                {order?.discount > 0 && <p className={"font-body-sm text-body-sm text-secondary-container text-right mt-space-sm"}>Descuento: -{formatoPrecio(order.discount)}</p>}
               </div>
               <div className={"flex flex-col sm:flex-row items-center justify-center gap-space-md w-full max-w-lg"}>
                 <a className={"w-full sm:w-auto flex-1 px-space-xl py-3 rounded-lg bg-primary-container text-surface-container-lowest font-label-lg text-label-lg font-bold text-center hover:bg-primary-fixed-dim transition-all shadow-[0_0_16px_rgba(0,240,255,0.4)] flex items-center justify-center gap-2 active:scale-[0.98]"} data-path={"mi-boveda"} href={"/claves"}>
@@ -127,7 +177,7 @@ function PedidoConfirmacion() {
                   Licencias Protegidas
                 </h4>
                 <p className={"font-body-sm text-body-sm text-on-surface-variant"}>
-                  Tus claves han quedado encriptadas y guardadas de por vida en tu cuenta de usuario.
+                  Tus keys asignadas están disponibles en Mi Bóveda.
                 </p>
               </div>
             </div>

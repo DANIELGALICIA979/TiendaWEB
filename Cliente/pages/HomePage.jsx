@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import useCatalogData from '../src/useCatalogData.js'
 import { formatoPrecio, nombreCatalogo, ofertasConDescuento } from '../src/catalogUtils.js'
+import SiteHeader from '../src/SiteHeader.jsx'
+import SiteFooter from '../src/SiteFooter.jsx'
 
 const demoLicense = 'NX89-K27R-99QP-VLT1'
 
@@ -14,8 +16,6 @@ function HomePage({ user, onSignOut }) {
   const featuredDiscount = featuredOffer?.original_price > featuredOffer?.price
     ? Math.round((featuredOffer.original_price - featuredOffer.price) / featuredOffer.original_price * 100)
     : 0
-  const username = user?.user_metadata?.username || user?.email
-
   async function handleCopyLicense() {
     try {
       await navigator.clipboard.writeText(demoLicense)
@@ -49,79 +49,7 @@ function HomePage({ user, onSignOut }) {
       box-shadow: 0 0 16px rgba(52, 255, 141, 0.25);
     }`}</style>
       <div className="bg-background text-on-surface antialiased selection:bg-primary-container selection:text-surface-container-lowest min-h-screen flex flex-col cyber-grid">
-{/* TOP APP BAR (Shared Components: TopNavBar) */}
-<header className="bg-surface-container-lowest dark:bg-surface-container-lowest shadow-[0_0_16px_rgba(0,240,255,0.12)] border-b border-outline-variant sticky top-0 z-50">
-<div className="w-full px-space-md lg:px-space-xl py-space-sm flex items-center justify-between mx-auto gap-space-md">
-{/* Brand & Search cluster */}
-<div className="flex items-center gap-space-lg flex-1 max-w-2xl">
-<a className="font-headline-md text-headline-md tracking-wider uppercase text-primary-container dark:text-primary-container flex items-center gap-2 shrink-0 active:scale-[0.98] transition-transform" href="/catalogo">
-<span className="w-2.5 h-6 bg-primary-container inline-block shadow-[0_0_10px_#00f0ff]"></span>
-          Nexus Keys
-        </a>
-{/* Search Bar (on_left configuration) */}
-<div className="relative w-full max-w-md hidden sm:block">
-<div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-outline">
-<span className="material-symbols-outlined" data-icon="search">search</span>
-</div>
-<input className="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-all" placeholder="Buscar títulos" type="text"/>
-<div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-<kbd className="font-label-sm text-label-sm text-outline px-1.5 py-0.5 border border-outline-variant rounded bg-surface-container">⌘K</kbd>
-</div>
-</div>
-</div>
-{/* Navigation Links (Steam, PlayStation, Xbox, Nintendo) */}
-
-{/* Trailing cluster: Cart and account controls */}
-<div className="flex items-center gap-space-md shrink-0">
-<a aria-label="Carrito de compras" href="/carrito" className="relative p-2 text-on-surface-variant hover:text-primary-container transition-colors active:scale-[0.98]">
-<span className="material-symbols-outlined text-2xl" data-icon="shopping_cart">shopping_cart</span>
-<span className="absolute 1 top-1 right-1 w-4 h-4 bg-secondary-container text-surface-container-lowest font-label-sm text-[9px] font-bold rounded-full flex items-center justify-center shadow-[0_0_8px_#34ff8d]">
-            3
-          </span>
-</a>
-<div className="h-5 w-px bg-outline-variant hidden sm:block"></div>
-<a className="font-label-md text-label-md px-3.5 py-2 text-primary-container hover:bg-surface-container rounded-lg border border-primary-container/30 transition-all active:scale-[0.98]" href="/claves">
-          Mi Bóveda
-        </a>
-<span className="hidden md:inline font-label-sm text-label-sm text-on-surface-variant" title={username}>{username}</span>
-<button className="font-label-md text-label-md px-4 py-2 bg-primary-container text-surface-container-lowest font-bold rounded-lg shadow-[0_0_12px_rgba(0,240,255,0.35)] hover:bg-primary transition-all active:scale-[0.98]" onClick={onSignOut} type="button">
-          Cerrar sesión
-        </button>
-</div>
-</div>
-</header>
-{/* PLATFORM FILTER BAR (Sub-nav chips) */}
-<section className="border-b border-outline-variant/60 bg-surface-container-lowest/80 backdrop-blur-md">
-<div className="max-w-7xl mx-auto px-space-md lg:px-space-xl py-space-sm flex items-center gap-2 overflow-x-auto no-scrollbar">
-<span className="font-label-sm text-label-sm text-outline uppercase tracking-wider shrink-0 mr-2 flex items-center gap-1">
-<span className="material-symbols-outlined text-sm" data-icon="tune">tune</span> Filtros:
-      </span>
-{/* Chip: All */}
-<button className="px-3 py-1 rounded-full font-label-sm text-label-sm uppercase bg-primary-container text-surface-container-lowest font-bold transition-all shadow-[0_0_8px_rgba(0,240,255,0.4)]">
-        Todos
-      </button>
-{/* Chip: Steam */}
-<button className="px-3 py-1 rounded-full font-label-sm text-label-sm uppercase border border-[rgba(0,240,255,0.4)] text-primary-container bg-[rgba(0,240,255,0.06)] hover:bg-[rgba(0,240,255,0.15)] transition-all flex items-center gap-1.5">
-<span className="w-1.5 h-1.5 rounded-full bg-primary-container shadow-[0_0_4px_#00f0ff]"></span> Steam
-      </button>
-{/* Chip: PlayStation 5 */}
-<button className="px-3 py-1 rounded-full font-label-sm text-label-sm uppercase border border-[rgba(59,130,246,0.6)] text-primary bg-[rgba(59,130,246,0.12)] hover:bg-[rgba(59,130,246,0.2)] transition-all flex items-center gap-1.5">
-<span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span> PlayStation 5
-      </button>
-{/* Chip: Xbox Series */}
-<button className="px-3 py-1 rounded-full font-label-sm text-label-sm uppercase border border-[rgba(0,255,136,0.5)] text-secondary-container bg-[rgba(0,255,136,0.08)] hover:bg-[rgba(0,255,136,0.16)] transition-all flex items-center gap-1.5">
-<span className="w-1.5 h-1.5 rounded-full bg-secondary-container shadow-[0_0_4px_#34ff8d]"></span> Xbox Series
-      </button>
-{/* Chip: Nintendo Switch */}
-<button className="px-3 py-1 rounded-full font-label-sm text-label-sm uppercase border border-[rgba(255,51,102,0.6)] text-error bg-[rgba(255,51,102,0.1)] hover:bg-[rgba(255,51,102,0.2)] transition-all flex items-center gap-1.5">
-<span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Nintendo Switch
-      </button>
-{/* Chip: PC Direct */}
-<button className="px-3 py-1 rounded-full font-label-sm text-label-sm uppercase border border-outline-variant text-on-surface-variant hover:border-primary-container hover:text-primary transition-all">
-        PC / GOG / Epic
-      </button>
-</div>
-</section>
+<SiteHeader user={user} onSignOut={onSignOut} />
 {/* MAIN VIEWPORT CANVAS */}
 <main className="flex-grow max-w-7xl mx-auto w-full px-space-md lg:px-space-xl py-space-lg space-y-space-xl">
 {catalog.status === 'error' && <p className="font-body-sm text-body-sm text-error" role="alert">{catalog.message} <button className="underline" onClick={retry} type="button">Reintentar</button></p>}
@@ -132,7 +60,7 @@ function HomePage({ user, onSignOut }) {
 <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[460px] relative">
 {/* Hero Visual Media Canvas */}
 <div className="lg:col-span-7 relative order-1 lg:order-2 overflow-hidden h-64 lg:h-auto min-h-[280px]">
-<img className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out" src={featuredGame?.banner_url || featuredGame?.cover_url || ''} alt={featuredGame?.title || 'Juego destacado'}/>
+<img className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out" src={featuredGame?.banner_url || featuredGame?.cover_url || undefined} alt={featuredGame?.title || 'Juego destacado'}/>
 <div className="absolute inset-0 bg-gradient-to-t from-surface-container-low via-surface-container-low/40 to-transparent lg:bg-gradient-to-r lg:from-surface-container-low lg:via-surface-container-low/30 lg:to-transparent"></div>
 {/* Live Telemetry Status Pill */}
 <div className="absolute top-4 right-4 bg-surface-container-lowest/90 backdrop-blur-md border border-secondary-container/40 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-[0_0_12px_rgba(52,255,141,0.2)]">
@@ -182,7 +110,7 @@ function HomePage({ user, onSignOut }) {
 <div className="pt-space-md border-t border-outline-variant/60 space-y-space-sm">
 <div className="flex items-center gap-space-md">{featuredDiscount > 0 && <span className="px-2.5 py-1 bg-gradient-to-r from-[#b91c1c] to-[#dc2626] text-white font-headline-sm text-headline-sm font-extrabold rounded shadow-[0_0_14px_rgba(220,38,38,0.5)] border border-[#ef4444]/40">-{featuredDiscount}%</span>}<div className="flex flex-col">{featuredOffer?.original_price > featuredOffer?.price && <span className="font-label-sm text-label-sm text-outline line-through">{formatoPrecio(featuredOffer.original_price, featuredOffer.currency)}</span>}<span className="font-headline-lg text-headline-lg text-primary-container font-bold leading-none">{featuredOffer ? formatoPrecio(featuredOffer.price, featuredOffer.currency) : ''}</span></div><span className="ml-auto px-2.5 py-1 rounded bg-[#9333ea]/20 border border-[#a855f7]/50 text-[#eacfff] font-label-sm text-xs font-semibold flex items-center gap-1.5"><span className="material-symbols-outlined text-sm text-[#c084fc]">verified</span>Llave Autorizada</span></div>
 {/* Quick Buy / Pre-order Button */}
-<div className="flex flex-col sm:flex-row gap-2 pt-1"><a className="flex-1 py-3 px-6 bg-gradient-to-r from-primary-container via-[#38bdf8] to-primary-container hover:bg-primary text-surface-container-lowest font-label-lg text-label-lg font-bold rounded flex items-center justify-center gap-2 neon-cyan-glow transition-all active:scale-[0.98]" href={featuredGame ? `/carrito?product=${featuredGame.slug}` : '/carrito'}><span className="material-symbols-outlined text-lg" data-icon="bolt">bolt</span>COMPRAR CLAVE INMEDIATA</a><a className="px-4 py-3 border border-outline-variant text-on-surface rounded flex items-center justify-center font-label-md text-label-md hover:border-primary-container hover:text-primary-container transition-all" href={featuredGame ? `/juego/${featuredGame.slug}` : '/catalogo-completo'}>Ver ficha</a><button className="px-4 py-3 bg-[#9333ea]/15 border border-[#a855f7]/60 hover:bg-[#9333ea]/30 text-[#eacfff] rounded flex items-center justify-center gap-1.5 transition-all shadow-[0_0_12px_rgba(168,85,247,0.25)] active:scale-[0.98]" title="Añadir a lista de deseos"><span className="material-symbols-outlined text-[#f472b6]" data-icon="favorite">favorite</span><span className="font-label-sm text-xs font-bold">DESEOS</span></button></div>
+<div className="flex flex-col sm:flex-row gap-2 pt-1"><a className="flex-1 py-3 px-6 bg-gradient-to-r from-primary-container via-[#38bdf8] to-primary-container hover:bg-primary text-surface-container-lowest font-label-lg text-label-lg font-bold rounded flex items-center justify-center gap-2 neon-cyan-glow transition-all active:scale-[0.98]" href={featuredGame ? `/carrito?product=${encodeURIComponent(featuredGame.slug)}&edition=${encodeURIComponent(featuredOffer?.id || '')}` : '/carrito'}><span className="material-symbols-outlined text-lg" data-icon="bolt">bolt</span>COMPRAR CLAVE INMEDIATA</a><a className="px-4 py-3 border border-outline-variant text-on-surface rounded flex items-center justify-center font-label-md text-label-md hover:border-primary-container hover:text-primary-container transition-all" href={featuredGame ? `/juego/${featuredGame.slug}` : '/catalogo-completo'}>Ver ficha</a><button className="px-4 py-3 bg-[#9333ea]/15 border border-[#a855f7]/60 hover:bg-[#9333ea]/30 text-[#eacfff] rounded flex items-center justify-center gap-1.5 transition-all shadow-[0_0_12px_rgba(168,85,247,0.25)] active:scale-[0.98]" title="Añadir a lista de deseos"><span className="material-symbols-outlined text-[#f472b6]" data-icon="favorite">favorite</span><span className="font-label-sm text-xs font-bold">DESEOS</span></button></div>
 </div>
 </div>
 </div>
@@ -328,81 +256,7 @@ function HomePage({ user, onSignOut }) {
 {/* NEWSLETTER / COMMUNITY UPLINK BANNER */}
 <section className="p-space-lg rounded-xl bg-surface-container-lowest border border-[#a855f7]/40 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-space-lg shadow-[0_0_24px_rgba(147,51,234,0.15)]"><div className="absolute -right-10 -bottom-10 w-48 h-48 bg-[#9333ea]/15 rounded-full blur-3xl pointer-events-none"></div><div className="absolute -left-10 -top-10 w-48 h-48 bg-[#dc2626]/10 rounded-full blur-3xl pointer-events-none"></div><div className="space-y-1 text-center md:text-left relative z-10"><div className="flex items-center gap-2 justify-center md:justify-start"><span className="w-2 h-2 rounded-full bg-[#ef4444] animate-ping"></span><span className="font-label-sm text-xs uppercase tracking-wider text-[#eacfff] font-semibold">Drops &amp; Flash Sales</span></div><h3 className="font-headline-md text-headline-md font-bold text-white uppercase">Únete al Enlace Neural de Descuentos</h3><p className="font-body-md text-body-md text-on-surface-variant">Recibe alertas de caídas de precio históricas y drops de claves gratuitas directo en tu bandeja.</p></div><div className="flex w-full md:w-auto max-w-md items-center gap-2 relative z-10"><input className="flex-1 bg-surface-container border border-[#a855f7]/40 rounded-lg px-4 py-2.5 font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:border-[#a855f7]" placeholder="tu-correo@nexus.gg" type="email"/><button className="px-5 py-2.5 bg-gradient-to-r from-[#9333ea] to-[#7e22ce] text-white font-label-md text-label-md font-bold rounded-lg hover:from-[#a855f7] hover:to-[#9333ea] shadow-[0_0_12px_rgba(168,85,247,0.4)] transition-all shrink-0">Suscribirme</button></div></section>
 </main>
-{/* FOOTER (Shared Components: Footer) */}
-<footer className="bg-surface-container-lowest dark:bg-surface-container-lowest border-t border-outline-variant dark:border-outline-variant mt-space-xl">
-<div className="w-full px-space-md lg:px-space-xl py-space-xl flex flex-col gap-space-lg mx-auto max-w-7xl">
-{/* Footer Top Matrix: Brand + Links Columns */}
-<div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-space-lg">
-{/* Brand column */}
-<div className="col-span-2 space-y-space-sm">
-<div className="font-headline-sm text-headline-sm text-primary-container dark:text-primary-container uppercase tracking-widest flex items-center gap-2">
-<span className="w-2 h-4 bg-primary-container inline-block"></span>
-            Nexus Keys
-          </div>
-<p className="font-body-sm text-body-sm text-on-surface-variant max-w-sm">
-            La bóveda definitiva de activación de claves de videojuegos digitales en tiempo real con protocolo de entrega automatizada y encriptación de extremo a extremo.
-          </p>
-<div className="flex items-center gap-3 pt-2">
-<span className="px-2 py-1 bg-surface-container rounded font-label-sm text-xs text-outline border border-outline-variant">DISCORD UPLINK</span>
-<span className="px-2 py-1 bg-surface-container rounded font-label-sm text-xs text-outline border border-outline-variant">TWITTER / X</span>
-<span className="px-2 py-1 bg-surface-container rounded font-label-sm text-xs text-outline border border-outline-variant">STEAM COMM</span>
-</div>
-</div>
-{/* Links Column: Plataformas */}
-<div className="space-y-2">
-<h4 className="font-label-md text-label-md text-white uppercase font-bold tracking-wider">Plataformas</h4>
-<ul className="space-y-1.5 font-label-sm text-label-sm">
-<li><a className="text-on-surface-variant hover:text-secondary-fixed-dim transition-colors" href="#">Steam PC</a></li>
-<li><a className="text-on-surface-variant hover:text-secondary-fixed-dim transition-colors" href="#">PlayStation 5</a></li>
-<li><a className="text-on-surface-variant hover:text-secondary-fixed-dim transition-colors" href="#">Xbox Series X|S</a></li>
-<li><a className="text-on-surface-variant hover:text-secondary-fixed-dim transition-colors" href="#">Nintendo Switch</a></li>
-<li><a className="text-on-surface-variant hover:text-secondary-fixed-dim transition-colors" href="#">GOG Galaxy</a></li>
-</ul>
-</div>
-{/* Links Column: Soporte */}
-<div className="space-y-2">
-<h4 className="font-label-md text-label-md text-white uppercase font-bold tracking-wider">Soporte &amp; Ayuda</h4>
-<ul className="space-y-1.5 font-label-sm text-label-sm">
-<li><a className="text-on-surface-variant hover:text-secondary-fixed-dim transition-colors" href="#">Instant Delivery FAQ</a></li>
-<li><a className="text-on-surface-variant hover:text-secondary-fixed-dim transition-colors" href="#">Refund Node</a></li>
-<li><a className="text-on-surface-variant hover:text-secondary-fixed-dim transition-colors" href="#">Support Uplink</a></li>
-<li><a className="text-on-surface-variant hover:text-secondary-fixed-dim transition-colors" href="#">Guía de Activación</a></li>
-<li><a className="text-on-surface-variant hover:text-secondary-fixed-dim transition-colors" href="#">Estado del Servidor</a></li>
-</ul>
-</div>
-{/* Links Column: Legal Matrix */}
-<div className="space-y-2">
-<h4 className="font-label-md text-label-md text-white uppercase font-bold tracking-wider">Protocolo Legal</h4>
-<ul className="space-y-1.5 font-label-sm text-label-sm">
-<li><a className="text-primary-container dark:text-primary-container font-label-sm text-label-sm hover:text-secondary-fixed-dim transition-colors" href="#">Terms of Protocol</a></li>
-<li><a className="text-on-surface-variant hover:text-secondary-fixed-dim transition-colors" href="#">Privacy Matrix</a></li>
-<li><a className="text-on-surface-variant hover:text-secondary-fixed-dim transition-colors" href="#">Merchant Portal</a></li>
-<li><a className="text-on-surface-variant hover:text-secondary-fixed-dim transition-colors" href="#">Política Anti-Fraude</a></li>
-</ul>
-</div>
-{/* Links Column: Pagos Seguros */}
-<div className="space-y-2">
-
-<div className="grid grid-cols-2 gap-2 text-outline font-label-sm text-[11px]">
-<div className="p-2 border border-outline-variant rounded bg-surface-container text-center font-bold">VISA</div>
-<div className="p-2 border border-outline-variant rounded bg-surface-container text-center font-bold">MASTERCARD</div>
-<div className="p-2 border border-outline-variant rounded bg-surface-container text-center font-bold">PAYPAL</div>
-<div className="p-2 border border-outline-variant rounded bg-surface-container text-center font-bold">CRYPTO</div>
-</div>
-<div className="text-[10px] text-outline pt-1 flex items-center gap-1">
-<span className="material-symbols-outlined text-xs text-secondary-container" data-icon="lock">lock</span> Cifrado SSL 256-bit
-          </div>
-</div>
-</div>
-{/* Footer Bottom Division */}
-<div className="pt-space-md border-t border-outline-variant/40 flex flex-col md:flex-row items-center justify-between gap-space-md">
-<p className="font-body-sm text-body-sm text-outline text-center md:text-left">
-          © 2025 Nexus Keys Vault. Instant Neural Link Delivery. All trademarks belong to respective publishers.
-        </p>
-
-</div>
-</div>
-</footer>
+<SiteFooter />
 
 
 

@@ -2,6 +2,44 @@ import { useState } from 'react'
 import useCatalogData from '../src/useCatalogData.js'
 import { formatoPrecio, nombreCatalogo } from '../src/catalogUtils.js'
 
+function getYouTubeVideo(trailerUrl) {
+  if (typeof trailerUrl !== 'string' || !trailerUrl.trim()) {
+    return null
+  }
+
+  try {
+    const url = new URL(trailerUrl)
+    if (url.protocol !== 'https:') {
+      return null
+    }
+
+    const hostname = url.hostname.toLowerCase().replace(/^www\./, '')
+    const pathParts = url.pathname.split('/').filter(Boolean)
+    let videoId
+
+    if (hostname === 'youtu.be') {
+      videoId = pathParts[0]
+    } else if (['youtube.com', 'm.youtube.com', 'youtube-nocookie.com'].includes(hostname)) {
+      videoId = ['embed', 'shorts', 'live'].includes(pathParts[0])
+        ? pathParts[1]
+        : url.searchParams.get('v')
+    } else {
+      return null
+    }
+
+    if (!videoId || !/^[\w-]{11}$/.test(videoId)) {
+      return null
+    }
+
+    return {
+      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1&rel=0`,
+      thumbnailUrl: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+    }
+  } catch {
+    return null
+  }
+}
+
 function DetalleJuego() {
   const { catalog, retry } = useCatalogData()
   const [activeImage, setActiveImage] = useState(0)
@@ -12,7 +50,14 @@ function DetalleJuego() {
   const slug = decodeURIComponent(window.location.pathname.split('/').filter(Boolean).pop() || '')
   const game = catalog.games.find(item => item.slug === slug)
     || (!window.location.pathname.startsWith('/juego/') ? catalog.games[0] : undefined)
-  const galleryImages = [game?.banner_url, game?.cover_url].filter(Boolean)
+  const trailer = getYouTubeVideo(game?.trailer_url)
+  const galleryItems = [
+    ...(trailer ? [{ type: 'video', src: trailer.embedUrl, thumbnail: trailer.thumbnailUrl }] : []),
+    ...[game?.banner_url, game?.cover_url]
+      .filter(Boolean)
+      .map(src => ({ type: 'image', src })),
+  ]
+  const activeMedia = galleryItems[activeImage]
   const offers = game?.offers || []
   const platforms = [...new Set(offers.map(offer => nombreCatalogo(offer.platform)).filter(Boolean))]
   const regions = [...new Set(offers.map(offer => nombreCatalogo(offer.region)).filter(Boolean))]
@@ -31,7 +76,7 @@ function DetalleJuego() {
       product: game.slug,
       platform: nombreCatalogo(currentEdition?.platform) || selectedPlatform,
       region: nombreCatalogo(currentEdition?.region) || selectedRegion,
-      edition: currentEdition?.edition || selectedEdition,
+      edition: currentEdition?.id || selectedEdition,
     })
     window.location.assign(`/carrito?${query}`)
   }
@@ -100,17 +145,31 @@ function DetalleJuego() {
             <div className={"absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-primary-container to-transparent z-20"}>
             </div>
             <div className={"relative w-full aspect-[16/9] overflow-hidden bg-surface-container-lowest"}>
-              <div className={"w-full h-full bg-cover bg-center transition-all duration-500 scale-100 group-hover:scale-105"} id={"main-preview-img"} style={{ backgroundImage: `url('${galleryImages[activeImage]}')` }}>
-              </div>
+              {activeMedia?.type === 'video' ? (
+                <iframe
+                  className="absolute inset-0 h-full w-full"
+                  src={activeMedia.src}
+                  title={`Tráiler de ${game.title}`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                />
+              ) : (
+                <div
+                  className={"w-full h-full bg-cover bg-center transition-all duration-500 scale-100 group-hover:scale-105"}
+                  id={"main-preview-img"}
+                  style={{ backgroundImage: activeMedia ? `url('${activeMedia.src}')` : undefined }}
+                />
+              )}
               <div className={"absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent pointer-events-none"}>
               </div>
-              <div className={"absolute inset-0 flex items-center justify-center opacity-85 group-hover:opacity-100 transition-opacity"}>
-                <button className={"w-14 h-14 rounded-full bg-surface-container-lowest/80 backdrop-blur-md flex items-center justify-center text-primary-container shadow-[0_0_20px_rgba(0,240,255,0.4)] hover:scale-110 active:scale-95 transition-all"} type={"button"}>
-                  <span className={"material-symbols-outlined text-3xl ml-0.5"}>
+              {activeMedia?.type !== 'video' && (
+                <div className={"absolute inset-0 flex items-center justify-center opacity-85 group-hover:opacity-100 transition-opacity"}>
+                  <span className={"material-symbols-outlined text-3xl ml-0.5 text-primary-container"} aria-hidden="true">
                     play_arrow
                   </span>
-                </button>
-              </div>
+                </div>
+              )}
               <div className={"absolute bottom-4 left-4 right-4 flex items-end justify-between pointer-events-none"}>
                 <div className={"space-y-1"}>
                   <div className={"flex items-center gap-2"}>
@@ -135,10 +194,16 @@ function DetalleJuego() {
               </div>
             </div>
             <div className={"p-space-sm bg-surface-container-low flex items-center gap-space-sm overflow-x-auto"}>
-              {galleryImages.map((image, index) => (
-                <button key={`${image}-${index}`} aria-pressed={activeImage === index} className={`relative flex-shrink-0 w-24 h-14 rounded-lg overflow-hidden bg-surface-container-highest ${activeImage === index ? 'ring-2 ring-primary-container' : 'opacity-70 hover:opacity-100'} focus:outline-none transition-all`} onClick={() => setActiveImage(index)} type={"button"}>
-                  <div className={"w-full h-full bg-cover bg-center"} style={{ backgroundImage: `url('${image}')` }}>
-                  </div>
+              {galleryItems.map((media, index) => (
+                <button key={`${media.src}-${index}`} aria-label={media.type === 'video' ? `Ver tráiler de ${game.title}` : `Ver imagen ${index}`} aria-pressed={activeImage === index} className={`relative flex-shrink-0 w-24 h-14 rounded-lg overflow-hidden bg-surface-container-highest ${activeImage === index ? 'ring-2 ring-primary-container' : 'opacity-70 hover:opacity-100'} focus:outline-none transition-all`} onClick={() => setActiveImage(index)} type={"button"}>
+                  {media.type === 'video' ? (
+                    <>
+                      <img className="h-full w-full object-cover" src={media.thumbnail} alt="" />
+                      <span className="material-symbols-outlined absolute inset-0 flex items-center justify-center bg-black/30 text-white" aria-hidden="true">play_arrow</span>
+                    </>
+                  ) : (
+                    <div className={"w-full h-full bg-cover bg-center"} style={{ backgroundImage: `url('${media.src}')` }} />
+                  )}
                 </button>
               ))}
             </div>

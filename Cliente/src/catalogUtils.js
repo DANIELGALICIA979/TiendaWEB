@@ -1,12 +1,12 @@
-export function formatoPrecio(value, currency) {
-  const currencyCode = typeof currency === 'string' && currency.trim().length === 3
-    ? currency.trim()
-    : 'MXN'
-
-  return new Intl.NumberFormat('es-MX', {
+export function formatoPrecio(value) {
+  const formattedAmount = new Intl.NumberFormat('es-MX', {
     style: 'currency',
-    currency: currencyCode,
+    currency: 'MXN',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value)
+
+  return `${formattedAmount} MXN`
 }
 
 export function nombreCatalogo(value) {

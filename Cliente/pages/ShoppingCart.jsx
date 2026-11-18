@@ -1,13 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useCatalogData from '../src/useCatalogData.js'
 import { formatoPrecio, nombreCatalogo } from '../src/catalogUtils.js'
-
-const paymentMethods = [
-  { id: 'card', icon: 'credit_card', name: 'Tarjeta de Crédito / Débito', note: 'Visa, Master, Amex' },
-  { id: 'paypal', icon: 'account_balance_wallet', name: 'PayPal', note: 'Saldo o cuentas vinculadas' },
-  { id: 'crypto', icon: 'currency_bitcoin', name: 'Cripto (USDT / BTC)', note: 'Red TRC20, BSC, Polygon' },
-  { id: 'transfer', icon: 'payments', name: 'Transferencia Rápida', note: 'SPEI, PSE, Pix, SEPA' },
-]
+import useCart from '../src/useCart.js'
+import { confirmarCompra, limpiarSolicitudCompra } from '../services/api.js'
 
 function moneda(amount, currency = 'MXN') {
   return formatoPrecio(amount, currency)
@@ -15,11 +10,12 @@ function moneda(amount, currency = 'MXN') {
 
 function ShoppingCart() {
   const { catalog, retry } = useCatalogData()
-  const [quantity, setQuantity] = useState(1)
-  const [removed, setRemoved] = useState(false)
+  const { items, error: cartError, addItem, updateQuantity, removeItem, clearCart } = useCart()
   const [couponApplied, setCouponApplied] = useState(true)
-  const [paymentMethod, setPaymentMethod] = useState('card')
-  const [copyMessage, setCopyMessage] = useState('')
+  const [checkoutError, setCheckoutError] = useState('')
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const processedRequest = useRef('')
+  const checkoutInProgress = useRef(false)
 
   const params = new URLSearchParams(window.location.search)
   const productSlug = params.get('product')
@@ -34,8 +30,9 @@ function ShoppingCart() {
     nombreCatalogo(item.platform) === requestedPlatform
     && nombreCatalogo(item.region) === requestedRegion
   )) || gameOffers[0]
-  const cartItem = game && offer ? {
-    id: game.id,
+  const cartItem = useMemo(() => game && offer ? {
+    id: `${game.id}:${offer.id}`,
+    offerId: String(offer.id),
     name: game.title,
     platform: nombreCatalogo(offer.platform) || 'Plataforma no especificada',
     delivery: 'ENTREGA INMEDIATA',
@@ -46,16 +43,36 @@ function ShoppingCart() {
       ? Number(offer.original_price)
       : null,
     currency: offer.currency,
-    quantity,
     image: game.cover_url || game.banner_url,
     accent: 'cyan',
-  } : null
-  const items = cartItem && !removed ? [cartItem] : []
-  const notice = catalog.status === 'ready' && productSlug && !cartItem
+  } : null, [game, offer])
+  const notice = catalog.status === 'ready' && productSlug && (!game || !cartItem)
     ? 'No se encontró una oferta disponible para este juego.'
     : ''
 
-  const currency = items[0]?.currency || 'MXN'
+  useEffect(() => {
+    if (catalog.status !== 'ready' || !productSlug) {
+      return
+    }
+
+    if (!game || !cartItem) {
+      return
+    }
+
+    const request = window.location.search
+    if (processedRequest.current === request) {
+      return
+    }
+    processedRequest.current = request
+
+    if (addItem(cartItem)) {
+      window.history.replaceState({}, '', '/carrito')
+    } else {
+      processedRequest.current = ''
+    }
+  }, [addItem, cartItem, catalog.status, game, productSlug])
+
+  const currency = 'MXN'
   const itemCount = items.reduce((total, item) => total + item.quantity, 0)
   const subtotal = items.reduce(
     (total, item) => total + item.price * item.quantity,
@@ -64,24 +81,29 @@ function ShoppingCart() {
   const discount = couponApplied ? subtotal * 0.15 : 0
   const total = subtotal - discount
 
-  function changeQuantity(id, amount) {
-    if (id === cartItem?.id) {
-      setQuantity(currentQuantity => Math.max(1, currentQuantity + amount))
+  async function finalizarCompra() {
+    if (checkoutInProgress.current) {
+      return
     }
-  }
 
-  function removeItem(id) {
-    if (id === cartItem?.id) {
-      setRemoved(true)
-    }
-  }
+    checkoutInProgress.current = true
+    setCheckoutLoading(true)
+    setCheckoutError('')
 
-  async function copyLicense() {
     try {
-      await navigator.clipboard.writeText('NX89-DEMO-2025-VLT9')
-      setCopyMessage('Licencia copiada.')
+      const order = await confirmarCompra(items, couponApplied ? 'GAMER2025' : null)
+      if (!clearCart()) {
+        setCheckoutError('La orden se creó, pero no se pudo limpiar el carrito. Vuelve a finalizar para recuperar la misma orden.')
+        return
+      }
+
+      limpiarSolicitudCompra()
+      window.location.assign(`/pedido-confirmacion?order=${encodeURIComponent(order.id)}`)
     } catch (error) {
-      setCopyMessage(`No se pudo copiar la licencia: ${error.message}`)
+      setCheckoutError(error.message)
+    } finally {
+      checkoutInProgress.current = false
+      setCheckoutLoading(false)
     }
   }
 
@@ -90,7 +112,9 @@ function ShoppingCart() {
 
       <main className="cart-main" id="carrito">
         {catalog.status === 'error' && <p className="checkout-notice" role="alert">{catalog.message} <button type="button" className="text-button" onClick={retry}>Reintentar</button></p>}
+        {cartError && <p className="checkout-notice" role="alert">{cartError}</p>}
         {catalog.status === 'loading' && <p role="status">Cargando catálogo...</p>}
+        {notice && <p className="checkout-notice" role="status">{notice}</p>}
         <div className="cart-heading">
           <div>
             <p className="live-status"><span /> Protocolo de Despacho Neural Activo</p>
@@ -99,10 +123,8 @@ function ShoppingCart() {
           <button
             type="button"
             className="text-button delete-all"
-            onClick={() => {
-              setRemoved(true)
-            }}
-            disabled={items.length === 0}
+            onClick={clearCart}
+            disabled={items.length === 0 && !cartError}
           >
             <span className="material-symbols-outlined" aria-hidden="true">delete_sweep</span>
             Vaciar Carro
@@ -119,7 +141,7 @@ function ShoppingCart() {
             {items.length > 0 ? (
               items.map((item) => (
                 <article className={`product-card accent-${item.accent}`} key={item.id}>
-                  <img className="product-image" src={item.image} alt={`Portada de ${item.name}`} />
+                  {item.image && <img className="product-image" src={item.image} alt={`Portada de ${item.name}`} />}
                   <div className="product-content">
                     <div className="product-topline">
                       <div className="product-tags">
@@ -139,7 +161,7 @@ function ShoppingCart() {
                         <button
                           type="button"
                           aria-label="Reducir cantidad"
-                          onClick={() => changeQuantity(item.id, -1)}
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
                           disabled={item.quantity <= 1}
                         >
                           <span className="material-symbols-outlined" aria-hidden="true">remove</span>
@@ -148,7 +170,7 @@ function ShoppingCart() {
                         <button
                           type="button"
                           aria-label="Aumentar cantidad"
-                          onClick={() => changeQuantity(item.id, 1)}
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         >
                           <span className="material-symbols-outlined" aria-hidden="true">add</span>
                         </button>
@@ -200,7 +222,7 @@ function ShoppingCart() {
               <span className="material-symbols-outlined" aria-hidden="true">verified_user</span>
               <div>
                 <h2>Desbloqueo Inmediato en Tu Bóveda Personal</h2>
-                <p>En una compra real, tus códigos estarían disponibles en tu perfil de Nexus Vault.</p>
+                <p>Al finalizar la compra simulada, las keys disponibles se asignarán a tu perfil.</p>
               </div>
             </aside>
           </section>
@@ -223,49 +245,23 @@ function ShoppingCart() {
               <p>{couponApplied ? `Ahorraste ${moneda(discount, currency)} (Oferta Flash)` : 'Descuento no aplicado'}</p>
             </div>
 
-            <fieldset className="payment-selector">
-              <legend>Seleccionar Método de Pago</legend>
-              <div className="payment-options">
-                {paymentMethods.map((method) => (
-                  <button
-                    type="button"
-                    className={`payment-option ${paymentMethod === method.id ? 'selected' : ''}`}
-                    key={method.id}
-                    aria-pressed={paymentMethod === method.id}
-                    onClick={() => setPaymentMethod(method.id)}
-                  >
-                    <span className="material-symbols-outlined" aria-hidden="true">{method.icon}</span>
-                    <strong>{method.name}</strong>
-                    <small>{method.note}</small>
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-
-            {paymentMethod === 'card' && (
-              <div className="payment-preview">
-                <p><span className="material-symbols-outlined" aria-hidden="true">lock</span> DATOS CIFRADOS DE TRANSACCIÓN</p>
-                <input aria-label="Número de tarjeta de ejemplo" placeholder="Número de Tarjeta (•••• •••• •••• 4242)" autoComplete="cc-number" />
-                <div>
-                  <input aria-label="Vencimiento de tarjeta de ejemplo" placeholder="MM / AA" autoComplete="cc-exp" />
-                  <input aria-label="CVC de ejemplo" placeholder="CVC / CVV" type="password" autoComplete="cc-csc" />
-                </div>
-                <small>Vista de demostración: los pagos todavía no están configurados.</small>
-              </div>
-            )}
+            <div className="payment-preview">
+              <p><span className="material-symbols-outlined" aria-hidden="true">verified</span> COMPRA ACADÉMICA SIMULADA</p>
+              <small>No se solicitarán datos bancarios. Al confirmar, la orden se registrará y se asignarán las keys disponibles.</small>
+            </div>
 
             <div className="checkout-action">
               <button
                 type="button"
                 className="checkout-button"
-                disabled={items.length === 0}
-                onClick={() => window.location.assign('/pedido-confirmacion')}
+                disabled={items.length === 0 || checkoutLoading}
+                onClick={finalizarCompra}
               >
-                <span className="material-symbols-outlined" aria-hidden="true">bolt</span>
-                Ver confirmación de demostración
+                <span className="material-symbols-outlined" aria-hidden="true">{checkoutLoading ? 'sync' : 'bolt'}</span>
+                {checkoutLoading ? 'Procesando compra...' : 'Finalizar compra simulada'}
               </button>
-              {notice && <p className="checkout-notice" role="status">{notice}</p>}
-              <p>El flujo es demostrativo: no se procesará ningún pago.</p>
+              {checkoutError && <p className="checkout-notice" role="alert">{checkoutError}</p>}
+              <p>La simulación registrará el pago como aprobado; no se realizará ningún cobro.</p>
             </div>
             <div className="security-note">
               <p><span className="material-symbols-outlined" aria-hidden="true">verified</span> Garantía de Activación 100%</p>
@@ -277,24 +273,12 @@ function ShoppingCart() {
         <section className="license-preview">
           <div className="license-heading">
             <div>
-              <span>SIMULACIÓN DE DESPACHO EN VIVO</span>
-              <h2>¿Cómo verás tus licencias tras la compra?</h2>
+              <span>ENTREGA AUTOMÁTICA</span>
+              <h2>Tus keys aparecerán en tu biblioteca</h2>
             </div>
-            <span className="ready-indicator">NODO LISTO PARA INYECCIÓN</span>
+            <span className="ready-indicator">INVENTARIO VALIDADO AL COMPRAR</span>
           </div>
-          <div className="license-key">
-            <span className="material-symbols-outlined key-icon" aria-hidden="true">vpn_key</span>
-            <div>
-              <span>VOUCHER TEST NEURAL // {items[0]?.name || 'SIN PRODUCTO'}</span>
-              <strong>NX89-DEMO-2025-VLT9</strong>
-              <small>Región: {items[0]?.format || 'N/D'} • Plataforma: {items[0]?.platform || 'N/D'}</small>
-            </div>
-            <button type="button" className="button button-primary" onClick={copyLicense}>
-              <span className="material-symbols-outlined" aria-hidden="true">content_copy</span>
-              Copiar licencia
-            </button>
-          </div>
-          {copyMessage && <p className="copy-message" role="status">{copyMessage}</p>}
+          <p>La asignación se realiza en la base de datos. Consulta y copia las keys entregadas desde <a href="/claves">Mi Bóveda</a>.</p>
         </section>
       </main>
 
